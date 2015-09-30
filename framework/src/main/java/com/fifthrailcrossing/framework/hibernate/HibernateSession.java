@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fifthrailcrossing.framework.exception.DAOException;
+import com.fifthrailcrossing.framework.transaction.SessionsInTransactionHolder;
+import com.fifthrailcrossing.framework.transaction.TransactionIdHelper;
 
 /**
  * 
@@ -92,7 +94,21 @@ public class HibernateSession {
             if( logger.isDebugEnabled() ) {
                 logger.debug("Identity is accepted. Now closing the session");
             }
+            SessionsInTransactionHolder transaction = 
         }
+    }
+
+    public static void unbind(SessionFactory sessionFactory) {
+        if( null == sessionFactory ) {
+            Throwable e = new Throwable();
+            logger.error("sessionFactoy为null", e);
+            return;
+        }
+
+        String key = getSessionFactoryBindKey(sessionFactory);
+
+        ThreadLocalManager.unbindResource(key);
+        TransactionIdHelper.unbindTransactionId();
     }
 
     public static Session getSession(SessionFactory sessionFactory, boolean allowCreate) {

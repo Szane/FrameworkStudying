@@ -40,4 +40,25 @@ public class TransactionIdHelper {
                 log.debug("transactionId绑定已经存在");
         }
     }
+
+    public static void unbindTransactionId() {
+        if( ThreadLocalManager.hasResource(KEY_TRANID) )
+            ThreadLocalManager.unbindResource(KEY_TRANID);
+        else {
+            if( log.isDebugEnabled() )
+                // 多个sessionFactory时存在这种情况
+                log.debug("transactionId已经被取消绑定");
+        }
+    }
+
+    public static String getTransactionId() {
+        String transId = (String)ThreadLocalManager.getResource(KEY_TRANID);
+        if( null == transId ) {
+            transId = UUIDUtil.getRandomUUID();
+            if( log.isDebugEnabled() )
+                log.debug("自动提交食物，产生一个信息的transactionId:" + transId);
+        }
+        return (String)transId;
+    }
+
 }
