@@ -83,9 +83,7 @@ public class HibernateSession {
         try{
             context = new InitialContext();
             TransactionManager tm = (TransactionManager)context.lookup("java:/TransactionManager");
-            tm.getTransaction().registerSynchronization(new TransactionSynch()) {
-                
-        }
+            tm.getTransaction().registerSynchronization(new TransactionSynch())
         
     }
 

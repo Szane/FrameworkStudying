@@ -62,7 +62,7 @@ public class LocalHibernateTransactionController {
                     Throwable toTrace = new Throwable();
                     log.debug("没有数据库操作，因此没有对应的事务。记录调用堆栈", toTrace);
                 }
-                TransactionIdHelper.unbindTranactionId();
+                TransactionIdHelper.unbindTransactionId();
             }
         } else {
             if( commit ) {
@@ -87,9 +87,50 @@ public class LocalHibernateTransactionController {
             rollbackAllSession(holder);
         } else {
             hasError = flushAllSession(holder.getSessions());
-
+            if( hasError )
+                rollbackAllSession(holder);
         }
-
+        if( !hasError ) {
+            int errorTimes = 0;
+            for( Session session : holder.getSessions() ) {
+                SessionFactory sessionFactory = null;
+                try {
+                    sessionFactory = session.getSessionFactory();
+                    if( !session.isOpen() ) {
+                        log.error("session已经关闭");
+                        continue;
+                    }
+                    try {
+                        session.getTransaction().commit();
+                        log.debug("事务提交完毕");
+                    } catch (Throwable e) {
+                        log.error("事务提交异常", e);
+                        errorTimes++;
+                        hasError = true;
+                        try {
+                            session.getTransaction().rollback();
+                            log.debug("事务回滚完毕");
+                        } catch (Throwable e2) {
+                            log.error("Rollback session error!", e2);
+                        }
+                    } finally {
+                        try {
+                            session.close();
+                            if( log.isDebugEnabled() )
+                                log.debug("关闭session");
+                        } catch (Throwable e) {
+                            log.error("Close session error!", e);
+                            hasError = true;
+                        }
+                    }
+                } finally {
+                    HibernateSession.unbind(sessionFactory);
+                }
+            }
+            if( hasError && holder.getSessions().size() > errorTimes )
+                log.error("多个session时提交事务出错，可能存在事务不一致.{}/{}", holder.getSessions().size(), errorTimes);
+        }
+        return hasError;
     }
 
     private static boolean flushAllSession(List<Session> sessions) {
